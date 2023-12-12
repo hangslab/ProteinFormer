@@ -1,0 +1,346 @@
+import sys
+# sys.path.append('models')
+import os
+import argparse
+
+import timm
+
+import numpy as np
+import random
+from PIL import Image
+import datetime
+import matplotlib.pyplot as plt
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+
+# from torch.utils.data import DataLoader
+import torch.utils.data as data
+
+from models.resnet import get_resnet50
+from models.resnet_pre import resnet50
+from models.VGG import vgg16_bn
+from models.densenet import densenet169
+from models.VIT import ViT
+from models.vit import VisionTransformer, vit_base_patch16
+from models.vit_stem import vit_base_patch16_stem
+from models.vit_stem_crop import vit_base_patch16_stem_crop
+from models.vit_small import ViTS
+from models.cvt import get_cls_cvt
+from models.cvt_res import get_cls_cvt_res
+from models.ptformer.cls_model import CLSModel, PTFormer, PTFormer_H
+# import temp
+from models.swin import swin_tiny, swin_base
+
+from datasets.hpa import HpaDataset
+from datasets.ProteinLoc import ProLocDataset
+
+from sklearn import svm
+from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
+import torchvision.transforms as T
+import torchvision
+# import pyll
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--save_root', default='checkpoints/debug', help="name your save_root")
+parser.add_argument('--load_path', default=None, help="name your load_path")
+parser.add_argument('--pretrained_feature', default=False, type=str,  help='use pretrained feature')
+parser.add_argument('--loadckpt', default=False, type=str,  help='use pretrained feature')
+args = parser.parse_args()
+torch.manual_seed(42)
+np.random.seed(42)
+print('args.save_root', args.save_root)
+if not os.path.isdir('checkpoints'):
+    os.mkdir('checkpoints')
+if not os.path.isdir(args.save_root):
+    os.makedirs(args.save_root)
+
+data_directory_path = "/dataset/setall"
+train_file = "filenames/labels_train_single.txt"
+valid_file = "filenames/labels_val_single.txt"
+test_file = "filenames/labels_test_single.txt"
+
+
+NUM_CLASSES = 13
+
+
+start_epoch = 0
+
+def load_checkpoint(model, checkpoint_PATH, optimizer, resume=False):
+    print('loading checkpoint!')
+    start_epoch = 0
+    if checkpoint_PATH != None:
+        if resume:
+            model_CKPT = torch.load(checkpoint_PATH, map_location=lambda storage, loc: storage.cuda())
+            state_dict = dict()
+            for k, v in model_CKPT['state_dict'].items():
+                new_k = k
+                state_dict[new_k] = v  
+            model.load_state_dict(state_dict)
+            print('loading checkpoint!')
+            optimizer.load_state_dict(model_CKPT['optimizer'])
+            print('loading optimizer!')
+            start_epoch = model_CKPT['epoch']
+        else:
+            model_CKPT = torch.load(checkpoint_PATH)
+            model.load_state_dict(model_CKPT['state_dict'])
+            print('loading checkpoint!')
+    print('start_epoch', start_epoch)
+    return start_epoch
+
+
+
+
+# DEVICE = 'cuda:7'
+gpus = [0,1]
+
+# lr_value = 0.0001
+lr_value = 5e-5
+# lr_value = 1e-7
+# lr_value = 0.001
+# lr_value = 0.005
+# lr_value = 0.00005
+# lr_value = 0.00001
+# lr_value = 0.01
+total_epochs = 50
+batch_size = 8
+# batch_size = 6
+# batch_size = 16
+# batch_size = 64
+# batch_size = 1
+test_batch_size = 1
+
+VAL_FREQ = 1
+TEST_FREQ = 50
+
+MEAN = [0, 0, 0, 0]
+STD = [1, 1, 1, 1]
+# CROP_SIZE = (128, 128)
+# CROP_SIZE = (256, 256)
+# CROP_SIZE = (512, 512)
+CROP_SIZE = (1024, 1024)
+
+train_transforms = T.Compose([
+        torchvision.transforms.ToPILImage('CMYK'),
+        torchvision.transforms.RandomCrop(CROP_SIZE),
+        torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize(mean=MEAN, std=STD),
+        # pyll.transforms.NormalizeByImage()
+      ])
+# train_transforms = T.Compose([
+#         torchvision.transforms.ToPILImage('CMYK'),
+#         torchvision.transforms.ToTensor(),
+#         torchvision.transforms.Normalize(mean=MEAN, std=STD),
+#         # pyll.transforms.NormalizeByImage()
+#       ])
+
+
+eval_transforms = T.Compose([
+        torchvision.transforms.ToPILImage('CMYK'),
+        torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize(mean=MEAN, std=STD),
+        # pyll.transforms.NormalizeByImage()
+      ])
+
+print('loading data')
+train_dataset = ProLocDataset(data_directory_path=data_directory_path, label_file=train_file, transforms=train_transforms, num_classes=13)
+# train_dataset = ProLocDataset(data_directory_path=data_directory_path, label_file=train_file, transforms=train_transforms, num_classes=13, patching=True, patch_size=CROP_SIZE[0])
+print("training data count: %d" % len(train_dataset))
+valid_dataset = ProLocDataset(data_directory_path=data_directory_path, label_file=valid_file, transforms=eval_transforms, num_classes=13, patching=True, patch_size=CROP_SIZE[0])
+print("valid data count: %d" % len(valid_dataset))
+test_dataset = ProLocDataset(data_directory_path=data_directory_path, label_file=test_file, transforms=eval_transforms, num_classes=13, patching=True, patch_size=CROP_SIZE[0])
+print("testing data count: %d" % len(test_dataset))
+
+train_loader = data.DataLoader(train_dataset, batch_size=batch_size, 
+        pin_memory=False, shuffle=True, num_workers=0, drop_last=True)
+
+eval_loader = data.DataLoader(valid_dataset, batch_size=test_batch_size, 
+        pin_memory=False, shuffle=False, num_workers=0, drop_last=False)
+
+test_loader = data.DataLoader(test_dataset, batch_size=test_batch_size, 
+        pin_memory=False, shuffle=False, num_workers=0, drop_last=False)
+
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+# model = get_resnet50(3, n_classes=7)
+# model = resnet50(in_c=4, pretrained=False, num_classes=13)
+# model = get_cls_cvt(num_classes=7)
+# model = get_cls_cvt_res(num_classes=13, ft_stage=-1)
+# model = vgg16_bn(n_classes=7)
+# model = densenet169()
+# model = ViT(
+#         image_size = 512,
+#         patch_size = 16,
+#         num_classes = 13,
+#         dim = 768,
+#         depth = 12,
+#         heads = 12,
+#         mlp_dim = 4*768,
+#         channels = 4,
+#         dropout = 0,
+#         emb_dropout = 0
+#     )
+# vit_base_patch16_stem
+# vit_base_patch16_stem_crop
+# model = nn.DataParallel(vit_base_patch16(in_chans=4, num_classes=13), device_ids=gpus)
+# model = nn.DataParallel(vit_base_patch16_stem(in_chans=4, num_classes=13), device_ids=gpus)
+# model = nn.DataParallel(vit_base_patch16_stem_crop(in_chans=4, num_classes=13), device_ids=gpus)
+# model = nn.DataParallel(swin_base(in_chans=4, num_classes=13), device_ids=gpus)
+
+# model = nn.DataParallel(CLSModel(), device_ids=gpus)
+# model = nn.DataParallel(PTFormer(), device_ids=gpus)
+model = nn.DataParallel(PTFormer_H(), device_ids=gpus)
+
+# model = ViTS(
+#         image_size = 256,
+#         patch_size = 32,
+#         num_classes = 7,
+#         dim = 1024,
+#         depth = 6,
+#         heads = 16,
+#         mlp_dim = 2048,
+#         dropout = 0,
+#         emb_dropout = 0
+#     )
+# model.to(DEVICE)
+# model = vgg16_bn(n_classes=7)
+# print('model', model)
+print("Parameter Count: %d" % count_parameters(model))
+
+optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=lr_value)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.9)
+
+
+activate_list = [n for n, p in model.named_parameters() if "backbone" in n and p.requires_grad]
+print('len_activate_list', len(activate_list))
+if args.pretrained_feature:
+    print('load_pretrained_model_from{}'.format(args.pretrained_feature))
+    pre_feat_state_dict = torch.load(args.pretrained_feature, map_location=lambda storage, loc: storage.cuda())
+    if 'model' in pre_feat_state_dict.keys():
+        pre_feat_state_dict = pre_feat_state_dict['model']
+    elif 'state_dict' in pre_feat_state_dict.keys():
+        pre_feat_state_dict = pre_feat_state_dict['state_dict']
+    feat_dict = model.module.backbone.state_dict()
+    pre_feat_state_dict = {k.replace('module.',''): v for k, v in pre_feat_state_dict.items()}
+    pre_feat_state_dict = {k.replace('backbone.',''): v for k, v in pre_feat_state_dict.items()}
+    pre_dict = {k: v for k, v in pre_feat_state_dict.items() if k in feat_dict}
+    # print('matching keys', set(state_dict.keys()) & set(pre_dict.keys()))
+    print('feature unexpceted keys', set(pre_feat_state_dict.keys()) - set(feat_dict.keys()))
+    print('feature unloaded keys', set(feat_dict.keys()) - set(pre_feat_state_dict.keys()))
+    print('feature length of unloaded keys = {}'.format(len(set(feat_dict.keys()) - set(pre_feat_state_dict.keys()))))
+    unloaded_list = list(set(feat_dict.keys()) - set(pre_feat_state_dict.keys()))
+    un_key_list = []
+    for i in range(len(unloaded_list)):
+        un_key_list.append('module.backbone.' + unloaded_list[i])
+    print('len of strange keys = {}'.format(len(set(un_key_list) - set(activate_list))))
+    print('strange keys', set(un_key_list) - set(activate_list))
+    # print('matching keys', set(dct0.keys()) & set(dct1.keys()))
+    # print('matching keys', set(dct0.keys()) & set(dct1.keys()))
+    # model.module.load_pretrained_feature(feat_state_dict)
+    feat_dict.update(pre_dict)
+    model.module.backbone.load_state_dict(feat_dict)
+    del pre_dict
+    del feat_dict
+    del pre_feat_state_dict
+elif args.loadckpt:
+    # # load the checkpoint file specified by args.loadckpt
+    print("loading model {}".format(args.loadckpt))
+    state_dict = torch.load(args.loadckpt, map_location=lambda storage, loc: storage.cuda())
+    model_dict = model.state_dict()
+    pre_dict = {k: v for k, v in state_dict['state_dict'].items() if k in model_dict}
+    print('what happened ?')
+    print('matching keys', set(state_dict.keys()) & set(pre_dict.keys()))
+    print('unexpceted keys', set(state_dict['state_dict'].keys()) - set(model_dict.keys()))
+    print('unloaded keys', set(model_dict.keys()) - set(state_dict['state_dict'].keys()))
+    print('length of unloaded keys = {}'.format(len(set(model_dict.keys()) - set(state_dict['state_dict'].keys()))))
+    # print('matching keys', set(dct0.keys()) & set(dct1.keys()))
+    # print('matching keys', set(dct0.keys()) & set(dct1.keys()))
+    model_dict.update(pre_dict) 
+    model.load_state_dict(model_dict, strict=True)
+    del pre_dict
+    del model_dict
+    del state_dict
+
+model.cuda()
+
+
+total_steps = 0
+
+def calculate_metrics(label_bins, pred_bins, name):
+    acc = accuracy_score(y_true=label_bins.cpu(), y_pred=pred_bins.cpu())
+    pre = precision_score(y_true=label_bins.cpu(), y_pred=pred_bins.cpu(), average=None)
+    rec = recall_score(y_true=label_bins.cpu(), y_pred=pred_bins.cpu(), average=None)
+    f1 = f1_score(y_true=label_bins.cpu(), y_pred=pred_bins.cpu(), average=None)
+    metrics = {name+'accuracy_score': acc, name+'precision_score_mean': pre.mean(), 
+        name+'recall_score_mean': rec.mean(), name+'f1_score_mean': f1.mean()}
+    return metrics
+
+
+def evaluate(args=None, epoch=-1, dataset=None, tgt_bins=None):
+    print('evaluate epoch{}'.format(epoch))
+    model.eval()
+    total_num_correct = 0
+    total_num = 0
+    pred_bins = []
+    label_bins = []
+    for iteration, data in enumerate(dataset):
+        image, label = data['input'], data['target']
+        image = image.cuda()
+        label = label.cuda()
+        with torch.no_grad():
+            logits, feat = model(image)  
+        pred_bins.append(logits)
+        label_bins.append(label)
+        print('Evaluate:[{}/{}]\t'.format(iteration, len(dataset)))
+    
+    pred_bins = torch.cat(pred_bins, dim=0)
+    label_bins = torch.cat(label_bins, dim=0)
+    results = dict()
+    pred_bins = (pred_bins == pred_bins.max(dim=1, keepdim=True)[0]).to(dtype=torch.int32)
+    print('pred_bins', pred_bins.shape)
+    print('pred_bins', pred_bins)
+    print('label_bins', label_bins.shape)
+    print('label_bins', label_bins)
+    metrics = calculate_metrics(label_bins, pred_bins, 'single_cls')
+    results.update(metrics)
+    print('results', results)
+    return results
+
+def train(args=None):
+    for epoch in range(start_epoch+1, total_epochs+1):
+        model.train()
+        print("epoch: {}, lr: {:.6f}".format(epoch, optimizer.param_groups[0]['lr']))
+        for iteration, data in enumerate(train_loader):
+            image, label = data['input'], data['target']  # batch_size * 3 * 224 * 224   /  batch+size * 1
+            image = image.cuda()
+            label = label.cuda()
+            logits, features = model(image) # batch_size * 1
+            loss = F.cross_entropy(logits, label)
+            print('Train:[{}/{}][{}/{}] , loss:{} \t'.format(epoch, total_epochs, iteration, len(train_loader), loss.item()))
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        scheduler.step()
+        
+        if epoch % VAL_FREQ == 0:
+            results = evaluate(args, epoch, eval_loader)
+            save_NAME = 'val_epoch_%d.pth' % (epoch)
+            save_PATH = os.path.join(args.save_root, save_NAME)
+            torch.save({'epoch': epoch, 'state_dict': model.state_dict(), 'optimizer': optimizer.state_dict()}, save_PATH)
+
+        if epoch % TEST_FREQ == 0:
+            results = evaluate(args, epoch, test_loader)
+            save_NAME = 'test_epoch_%d.pth' % (epoch)
+            save_PATH = os.path.join(args.save_root, save_NAME)
+            torch.save({'epoch': epoch, 'state_dict': model.state_dict(), 'optimizer': optimizer.state_dict()}, save_PATH)
+
+
+
+if __name__ == '__main__':
+    train(args)

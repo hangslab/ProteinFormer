@@ -1,0 +1,200 @@
+12078, Nucleus, Nucleus
+5919, Nucleus
+14575, Nucleus
+12758, Nucleus
+10837, Nucleus
+14840, Cytosol
+8111, Vesicles
+2693, Nucleus
+9001, Microtubules
+6085, Cytosol
+12610, Nucleus
+11899, Nucleoli
+3254, Mitochondria
+17733, Cytosol
+7251, Nucleus
+12006, Nucleus
+14249, Nucleus
+19323, Cytosol
+7536, Nucleus
+10236, Nucleoli
+14926, Endoplasmic reticulum
+7875, Cytosol
+12194, Vesicles
+9985, Endoplasmic reticulum
+7015, Vesicles
+17661, Intermediate filaments
+2619, Plasma membrane
+7818, Microtubules
+14304, Vesicles
+12901, Vesicles
+316, Cytosol
+6087, Plasma membrane
+17702, Nucleus
+7670, Nucleoli
+5501, Nucleus
+8472, Cytosol
+8827, Cytosol
+1375, Nucleus
+13193, Nucleus
+7623, Nucleus
+2404, Plasma membrane
+18819, Nucleus
+14462, Nucleus
+481, Cytosol
+11562, Nucleus
+15886, Cytosol
+1260, Mitochondria
+18982, Cytosol
+4678, Nucleus
+7567, Nucleus
+8567, Nucleus
+11114, Cytosol
+8533, Cytosol
+15879, Plasma membrane
+2604, Nucleus
+8297, Nucleus
+10939, Cytosol
+7323, Mitochondria
+16501, Vesicles
+11154, Cytosol
+11967, Vesicles
+14467, Vesicles
+3570, Nucleus
+255, Vesicles
+1758, Vesicles
+5233, Golgi apparatus
+10521, Nucleoli
+17520, Nucleus
+9683, Nucleus
+19493, Nucleus
+19267, Nucleus
+9345, Vesicles
+6857, Cytosol
+2551, Vesicles
+3651, Cytosol
+6970, Nucleus
+9701, Nucleus
+13154, Nucleoli
+13909, Nucleus
+12953, Cytosol
+8154, Plasma membrane
+12598, Cytosol
+9264, Cytosol
+13861, Nucleoli
+13116, Plasma membrane
+8303, Nucleus
+9546, Nucleoli
+15320, Cytosol
+12228, Nucleus
+16025, Nucleus
+10816, Vesicles
+15908, Nucleus
+803, Nucleus
+12413, Vesicles
+19695, Nucleus
+10608, Vesicles
+8898, Vesicles
+1617, Nucleus
+12494, Nucleus
+8843, Cytosol
+305, Mitochondria
+3189, Golgi apparatus
+16409, Nucleus
+18466, Nucleus
+1420, Nucleus
+12054, Cytosol
+13420, Golgi apparatus
+6126, Nucleus
+2601, Cytosol
+4047, Endoplasmic reticulum
+1238, Nucleus
+4930, Nucleus
+7956, Endoplasmic reticulum
+8444, Nucleus
+17220, Nucleus
+4238, Nucleus
+15932, Nucleus
+16663, Nucleus
+9397, Plasma membrane
+3712, Nucleoli
+11356, Nucleus
+17143, Mitochondria
+9891, Nucleus
+13013, Cytosol
+19316, Cytosol
+11784, Nucleus
+17767, Cytosol
+14009, Nucleus
+15051, Nucleus
+17381, Mitochondria
+15336, Mitochondria
+11338, Nucleus
+10271, Nucleus
+4574, Mitochondria
+6927, Cytosol
+5558, Nucleus
+15271, Nucleus
+16655, Cytosol
+16394, Endoplasmic reticulum
+5353, Cytosol
+16168, Nucleus
+521, Nucleus
+5883, Nucleus
+17101, Nucleus
+12704, Vesicles
+19778, Vesicles
+9957, Nucleus
+15096, Nucleus
+9925, Mitochondria
+1313, Nucleus
+17672, Mitochondria
+5333, Nucleus
+14807, Nucleus
+5976, Nucleus
+3207, Mitochondria
+3375, Nucleus
+1702, Mitochondria
+3313, Nuclear membrane
+15110, Centrosome
+5825, Cytosol
+513, Cytosol
+19703, Cytosol
+4688, Nuclear membrane
+963, Vesicles
+12973, Cytosol
+8134, Centrosome
+6468, Vesicles
+1345, Nucleus
+15347, Vesicles
+18016, Cytosol
+1571, Intermediate filaments
+19194, Nucleus
+8128, Nucleoli
+10993, Nucleus
+19801, Cytosol
+8925, Mitochondria
+14733, Actin filaments
+15657, Vesicles
+15724, Nucleoli
+11177, Mitochondria
+15624, Cytosol
+19376, Cytosol
+19963, Cytosol
+5187, Vesicles
+2538, Cytosol
+9129, Nucleus
+16403, Mitochondria
+1079, Mitochondria
+17303, Nucleus
+4287, Nucleus
+6851, Mitochondria
+10392, Cytosol
+10080, Mitochondria
+8324, Nucleus
+446, Cytosol
+19396, Cytosol
+2930, Cytosol
+14985, Nucleus
+14558, Nucleus
+18719, Vesicles
