@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=6,7 python -u train_multi.py --save_root 'runs/multi_cls_scratch'
